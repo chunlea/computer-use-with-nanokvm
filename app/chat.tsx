@@ -110,26 +110,72 @@ function MessageContentComponent({ message }: { message: Message }) {
             )
           }
 
-          if (typeof part === "object") {
-            return (
-              <div key={index} className="flex justify-center">
-                <Image
-                  src={`data:${
-                    (part as ToolResultResponse).content[0].source.media_type
-                  };base64,${
-                    (part as ToolResultResponse).content[0].source.data
-                  }`}
-                  alt="Tool result"
-                  className="max-w-full"
-                  width={100}
-                  height={100}
-                  unoptimized={true}
-                />
-              </div>
-            )
+          if (
+            typeof part === "object" &&
+            (part as ToolResultResponse).type === "tool_result"
+          ) {
+            const toolResult = part as ToolResultResponse
+
+            if (toolResult.content) {
+              return (
+                <div key={index} className="flex justify-center">
+                  {toolResult.content.map((content, index) => {
+                    if (content.type === "text") {
+                      return (
+                        <ReactMarkdown
+                          key={index}
+                          rehypePlugins={[rehypeRaw, rehypeHighlight]}
+                        >
+                          {JSON.stringify(content)}
+                        </ReactMarkdown>
+                      )
+                    }
+
+                    if (content.type === "image") {
+                      return (
+                        <Image
+                          key={index}
+                          src={`data:${content.source.media_type};base64,${content.source.data}`}
+                          alt="Tool result"
+                          className="max-w-full"
+                          width={100}
+                          height={100}
+                          unoptimized={true}
+                        />
+                      )
+                    }
+
+                    return (
+                      <ReactMarkdown
+                        key={index}
+                        rehypePlugins={[rehypeRaw, rehypeHighlight]}
+                      >
+                        {JSON.stringify(content)}
+                      </ReactMarkdown>
+                    )
+                  })}
+                </div>
+              )
+            } else {
+              return (
+                <ReactMarkdown
+                  key={index}
+                  rehypePlugins={[rehypeRaw, rehypeHighlight]}
+                >
+                  {JSON.stringify(toolResult)}
+                </ReactMarkdown>
+              )
+            }
           }
 
-          return <div key={index}>{JSON.stringify(part)}</div>
+          return (
+            <ReactMarkdown
+              key={index}
+              rehypePlugins={[rehypeRaw, rehypeHighlight]}
+            >
+              {JSON.stringify(part)}
+            </ReactMarkdown>
+          )
         })}
       </div>
     )

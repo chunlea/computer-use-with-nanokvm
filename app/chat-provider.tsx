@@ -101,15 +101,22 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       // Prepare all messages for the API request
       const apiMessages = [...messages, userMessage].map((msg) => {
         if (msg.toolUse) {
-          return {
-            role: msg.role,
-            content: [
-              {
-                type: "text",
-                text: msg.content,
-              },
-              msg.toolUse,
-            ],
+          if (typeof msg.content === "string" && msg.content.length > 0) {
+            return {
+              role: msg.role,
+              content: [
+                {
+                  type: "text",
+                  text: msg.content,
+                },
+                msg.toolUse,
+              ],
+            }
+          } else {
+            return {
+              role: msg.role,
+              content: [msg.toolUse],
+            }
           }
         }
 
@@ -209,16 +216,44 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           }
           break
         case "mouse_move":
-          console.log("Mouse move")
+          console.log("Mouse move", action.input?.coordinate)
+          await submitMessage({
+            messageContent: {
+              type: "tool_result",
+              tool_use_id: action.id,
+            },
+            showThinking: true,
+          })
           break
         case "left_click":
           console.log("Mouse left click")
+          await submitMessage({
+            messageContent: {
+              type: "tool_result",
+              tool_use_id: action.id,
+            },
+            showThinking: true,
+          })
           break
         case "key":
           console.log("Key press")
+          await submitMessage({
+            messageContent: {
+              type: "tool_result",
+              tool_use_id: action.id,
+            },
+            showThinking: true,
+          })
           break
         case "type":
           console.log("Type")
+          await submitMessage({
+            messageContent: {
+              type: "tool_result",
+              tool_use_id: action.id,
+            },
+            showThinking: true,
+          })
           break
       }
     },
