@@ -25,8 +25,14 @@ import rehypeRaw from "rehype-raw"
 import { useEffect, useRef, useState } from "react"
 import "highlight.js/styles/atom-one-dark.css"
 import { useChat } from "./chat-provider"
-import { APIResponse, Message, ToolUseResponse } from "@/types/api"
+import {
+  APIResponse,
+  Message,
+  ToolUseResponse,
+  ToolResultResponse,
+} from "@/types/api"
 import { cn } from "@/lib/utils"
+import Image from "next/image"
 
 function MessageToolComponent({
   isThinking,
@@ -58,6 +64,85 @@ function MessageToolComponent({
   )
 }
 
+function MessageContentComponent({ message }: { message: Message }) {
+  if (typeof message.content === "string") {
+    if (message.content === "thinking") {
+      return (
+        <div className="flex items-center">
+          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-2" />
+          {message.hasToolUse ? (
+            <div className="flex flex-col gap-2">
+              <MessageToolComponent
+                isThinking={true}
+                name={message.toolUse?.name}
+                action={message.toolUse?.input.action}
+              />
+              <span>Thinking...</span>
+            </div>
+          ) : (
+            <span>Thinking...</span>
+          )}
+        </div>
+      )
+    } else {
+      return (
+        <ReactMarkdown rehypePlugins={[rehypeRaw, rehypeHighlight]}>
+          {message.content}
+        </ReactMarkdown>
+      )
+    }
+  }
+
+  if (Array.isArray(message.content)) {
+    return (
+      <div className="flex flex-col gap-2">
+        {message.hasToolUse && (
+          <MessageToolComponent
+            isThinking={false}
+            name={message.toolUse?.name}
+            action={message.toolUse?.input.action}
+          />
+        )}
+        {message.content.map((part, index) => {
+          if (typeof part === "string") {
+            return (
+              <ReactMarkdown
+                key={index}
+                rehypePlugins={[rehypeRaw, rehypeHighlight]}
+              >
+                {part}
+              </ReactMarkdown>
+            )
+          }
+
+          if (typeof part === "object") {
+            return (
+              <div key={index} className="flex justify-center">
+                <Image
+                  src={`data:${
+                    (part as ToolResultResponse).content[0].source.media_type
+                  };base64,${
+                    (part as ToolResultResponse).content[0].source.data
+                  }`}
+                  alt="Tool result"
+                  className="max-w-full"
+                  width={100}
+                  height={100}
+                  unoptimized={true}
+                />
+              </div>
+            )
+          }
+
+          return <div key={index}>{JSON.stringify(part)}</div>
+        })}
+      </div>
+    )
+  }
+
+  return null
+}
+
 function MessageComponent({ message }: { message: Message }) {
   return (
     <div className="flex items-start gap-2">
@@ -79,50 +164,7 @@ function MessageComponent({ message }: { message: Message }) {
               : "bg-muted border"
           }`}
         >
-          {message.content === "thinking" ? (
-            <div className="flex items-center">
-              <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-2" />
-              {message.hasToolUse ? (
-                <div className="flex flex-col gap-2">
-                  <MessageToolComponent
-                    isThinking={true}
-                    name={message.toolUse?.name}
-                    action={message.toolUse?.input.action}
-                  />
-                  <span>Thinking...</span>
-                </div>
-              ) : (
-                <span>Thinking...</span>
-              )}
-            </div>
-          ) : message.role === "assistant" ? (
-            <div className="flex flex-col gap-2">
-              {message.hasToolUse && (
-                <MessageToolComponent
-                  isThinking={false}
-                  name={message.toolUse?.name}
-                  action={message.toolUse?.input.action}
-                />
-              )}
-              {typeof message.content === "string" ? (
-                <ReactMarkdown rehypePlugins={[rehypeRaw, rehypeHighlight]}>
-                  {message.content}
-                </ReactMarkdown>
-              ) : (
-                <div>{JSON.stringify(message.content)}</div>
-              )}
-            </div>
-          ) : (
-            <>
-              {typeof message.content === "string" ? (
-                <ReactMarkdown rehypePlugins={[rehypeRaw, rehypeHighlight]}>
-                  {message.content}
-                </ReactMarkdown>
-              ) : (
-                <div>{JSON.stringify(message.content)}</div>
-              )}
-            </>
-          )}
+          <MessageContentComponent message={message} />
         </div>
       </div>
     </div>

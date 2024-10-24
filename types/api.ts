@@ -9,6 +9,21 @@ export interface ToolUseResponse {
   input: ComputerAction
 }
 
+export interface ToolResultResponse {
+  type: "tool_result"
+  tool_use_id: string
+  content: [
+    {
+      type: "text"
+      source: {
+        type: string
+        media_type: string
+        data: string
+      }
+    }
+  ]
+}
+
 export interface APIResponse {
   content: string
   hasToolUse: boolean

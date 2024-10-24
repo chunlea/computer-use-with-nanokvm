@@ -76,6 +76,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               ],
             }
 
+            setMessages((prev) => [...prev, userMessage])
+
             // Prepare all messages for the API request
             const apiMessages = [...messages, userMessage].map((msg) => {
               if (msg.toolUse) {
@@ -119,7 +121,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
               setMessages((prev) => {
                 const newMessages = [...prev]
-                newMessages[newMessages.length - 1] = {
+                newMessages[newMessages.length] = {
                   id: crypto.randomUUID(),
                   role: "assistant",
                   content: data.content,
@@ -136,7 +138,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               console.error("Submit Error:", error)
               setMessages((prev) => {
                 const newMessages = [...prev]
-                newMessages[newMessages.length - 1] = {
+                newMessages[newMessages.length] = {
                   id: crypto.randomUUID(),
                   role: "assistant",
                   content:
