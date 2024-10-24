@@ -10,7 +10,6 @@ import React, {
   useEffect,
 } from "react"
 import { MouseButton, useHID } from "./hid-context"
-import { Mouse } from "lucide-react"
 
 interface ChatContextProps {
   takeAction: (action: ToolUseResponse) => void
@@ -268,7 +267,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           break
       }
     },
-    [moveMouse, submitMessage, takeScreenshot, typeString]
+    [clickMouse, moveMouse, submitMessage, takeScreenshot, typeString]
   )
 
   useEffect(() => {
