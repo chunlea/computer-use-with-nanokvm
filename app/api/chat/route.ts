@@ -55,7 +55,7 @@ const tools: ToolSchema[] = [
 
 export async function POST(req: NextRequest) {
   try {
-    const { messages, model } = await req.json()
+    const { messages, model = "claude-3-5-sonnet-20241022" } = await req.json()
 
     console.log("🔍 Initial Request Data:", {
       hasMessages: !!messages,
@@ -132,28 +132,12 @@ export async function POST(req: NextRequest) {
     const toolUseContent = response.content.find((c) => c.type === "tool_use")
     const textContent = response.content.find((c) => c.type === "text")
 
-    const processToolResponse = (toolUseContent: unknown) => {
-      if (!toolUseContent) return null
-
-      const toolUseInput = (
-        toolUseContent as { input: Record<string, unknown> }
-      ).input
-
-      return {
-        ...toolUseInput,
-      }
-    }
-
-    const processedChartData = toolUseContent
-      ? processToolResponse(toolUseContent)
-      : null
-
     return new Response(
       JSON.stringify({
         content: textContent?.text || "",
         hasToolUse: response.content.some((c) => c.type === "tool_use"),
         toolUse: toolUseContent,
-        chartData: processedChartData,
+        responseContent: response.content,
       }),
       {
         headers: {

@@ -14,3 +14,11 @@ export interface APIResponse {
   hasToolUse: boolean
   toolUse?: ToolUseResponse
 }
+
+export interface Message {
+  id: string
+  role: string
+  content: string | object[]
+  hasToolUse?: boolean
+  toolUse?: ToolUseResponse
+}
