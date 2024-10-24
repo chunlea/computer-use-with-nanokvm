@@ -9,6 +9,8 @@ import React, {
   useState,
   useEffect,
 } from "react"
+import { MouseButton, useHID } from "./hid-context"
+import { Mouse } from "lucide-react"
 
 interface ChatContextProps {
   takeAction: (action: ToolUseResponse) => void
@@ -41,6 +43,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [tool, setTool] = useState<ToolUseResponse | null | undefined>(null)
+
+  const { moveMouse, clickMouse, typeString } = useHID()
 
   const takeScreenshot = useCallback(() => {
     if (!screenRef.current) {
@@ -217,6 +221,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           break
         case "mouse_move":
           console.log("Mouse move", action.input?.coordinate)
+          if (action.input?.coordinate) {
+            moveMouse(action.input?.coordinate[0], action.input?.coordinate[1])
+          }
+
           await submitMessage({
             messageContent: {
               type: "tool_result",
@@ -227,6 +235,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           break
         case "left_click":
           console.log("Mouse left click")
+          clickMouse(MouseButton.Left)
           await submitMessage({
             messageContent: {
               type: "tool_result",
@@ -247,6 +256,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           break
         case "type":
           console.log("Type")
+          await typeString(action.input?.text || "")
+
           await submitMessage({
             messageContent: {
               type: "tool_result",
@@ -257,7 +268,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           break
       }
     },
-    [submitMessage, takeScreenshot]
+    [moveMouse, submitMessage, takeScreenshot, typeString]
   )
 
   useEffect(() => {
