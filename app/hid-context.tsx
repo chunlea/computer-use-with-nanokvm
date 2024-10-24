@@ -27,11 +27,13 @@ export const HIDProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [])
 
-  const moveMouse = useCallback((x: number, y: number) => {
+  const moveMouse = useCallback((clientX: number, clientY: number) => {
+    const x = clientX / 773
+    const y = clientY / 538
     const hexX = x < 0 ? 0x0001 : Math.floor(0x7fff * x) + 0x0001
     const hexY = y < 0 ? 0x0001 : Math.floor(0x7fff * y) + 0x0001
 
-    const data = [2, x, y, hexX, hexY]
+    const data = [2, MouseEvent.MoveAbsolute, MouseButton.None, hexX, hexY]
     client.send(data)
   }, [])
 
@@ -54,8 +56,9 @@ export const HIDProvider: React.FC<{ children: React.ReactNode }> = ({
     // mouse down
     client.send([2, MouseEvent.Down, button, 0, 0])
 
-    // mouse up
-    client.send([2, MouseEvent.Up, MouseButton.None, 0, 0])
+    // TODO: seems differnet duration at iOS has different behavior
+    // // mouse up
+    // client.send([2, MouseEvent.Up, button, 0, 0])
   }, [])
 
   const typeString = useCallback((str: string) => {

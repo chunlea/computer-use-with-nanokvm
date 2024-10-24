@@ -11,8 +11,8 @@ export default function KVMScreen() {
       <Image
         ref={screenRef}
         src="/api/stream/mjpeg"
-        height={1080}
-        width={1920}
+        width={800}
+        height={600}
         alt=""
         unoptimized={true}
       />

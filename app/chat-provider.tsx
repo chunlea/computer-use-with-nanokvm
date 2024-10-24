@@ -244,6 +244,18 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             showThinking: true,
           })
           break
+        case "double_click":
+          console.log("double click")
+          clickMouse(MouseButton.Left)
+          clickMouse(MouseButton.Left)
+          await submitMessage({
+            messageContent: {
+              type: "tool_result",
+              tool_use_id: action.id,
+            },
+            showThinking: true,
+          })
+          break
         case "key":
           console.log("Key press")
           await submitMessage({
