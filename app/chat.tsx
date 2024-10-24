@@ -25,12 +25,7 @@ import rehypeRaw from "rehype-raw"
 import { useEffect, useRef, useState } from "react"
 import "highlight.js/styles/atom-one-dark.css"
 import { useChat } from "./chat-provider"
-import {
-  APIResponse,
-  Message,
-  ToolUseResponse,
-  ToolResultResponse,
-} from "@/types/api"
+import { Message, ToolResultResponse } from "@/types/api"
 import { cn } from "@/lib/utils"
 import Image from "next/image"
 
@@ -173,17 +168,8 @@ function MessageComponent({ message }: { message: Message }) {
 
 export default function AIChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
-  const [tool, setTool] = useState<ToolUseResponse | null | undefined>(null)
 
-  const {
-    messages,
-    setMessages,
-    takeAction,
-    input,
-    setInput,
-    isLoading,
-    setIsLoading,
-  } = useChat()
+  const { messages, input, setInput, isLoading, submitMessage } = useChat()
 
   const contentRef = useRef<HTMLDivElement>(null)
   const [isScrollLocked, setIsScrollLocked] = useState(false)
@@ -224,13 +210,6 @@ export default function AIChat() {
     return () => observer.disconnect()
   }, [isScrollLocked])
 
-  useEffect(() => {
-    if (tool && messages[messages.length - 1].hasToolUse) {
-      takeAction(tool)
-      setTool(undefined)
-    }
-  }, [tool, takeAction, messages])
-
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!input.trim()) return
@@ -238,102 +217,23 @@ export default function AIChat() {
 
     setIsScrollLocked(true)
 
-    const userMessage: Message = {
-      id: crypto.randomUUID(),
-      role: "user",
-      content: input,
-    }
-
-    const thinkingMessage: Message = {
-      id: crypto.randomUUID(),
-      role: "assistant",
-      content: "thinking",
-    }
-
-    // Update messages in a single state update
-    setMessages((prev) => [...prev, userMessage, thinkingMessage])
     setInput("")
-    setIsLoading(true)
 
-    // Prepare all messages for the API request
-    const apiMessages = [...messages, userMessage].map((msg) => {
-      if (msg.toolUse) {
-        return {
-          role: msg.role,
-          content: [
-            {
-              type: "text",
-              text: msg.content,
-            },
-            msg.toolUse,
-          ],
-        }
-      }
+    await submitMessage({
+      messageContent: input,
+      showThinking: true,
+      afterSubmitting() {
+        setIsScrollLocked(false)
 
-      // Handle text-only messages
-      return {
-        role: msg.role,
-        content: msg.content,
-      }
-    })
-
-    const requestBody = {
-      messages: apiMessages,
-    }
-
-    try {
-      const response = await fetch("/api/chat", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(requestBody),
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data: APIResponse = await response.json()
-
-      setMessages((prev) => {
-        const newMessages = [...prev]
-        newMessages[newMessages.length - 1] = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: data.content,
-          hasToolUse: data.hasToolUse || !!data.toolUse,
-          toolUse: data.toolUse,
-        }
-        return newMessages
-      })
-
-      if (data.hasToolUse && data.toolUse) {
-        setTool(data.toolUse)
-      }
-    } catch (error) {
-      console.error("Submit Error:", error)
-      setMessages((prev) => {
-        const newMessages = [...prev]
-        newMessages[newMessages.length - 1] = {
-          id: crypto.randomUUID(),
-          role: "assistant",
-          content: "I apologize, but I encountered an error. Please try again.",
-        }
-        return newMessages
-      })
-    } finally {
-      setIsLoading(false)
-      setIsScrollLocked(false)
-
-      // Force a final scroll after state updates
-      requestAnimationFrame(() => {
-        messagesEndRef.current?.scrollIntoView({
-          behavior: "smooth",
-          block: "end",
+        // Force a final scroll after state updates
+        requestAnimationFrame(() => {
+          messagesEndRef.current?.scrollIntoView({
+            behavior: "smooth",
+            block: "end",
+          })
         })
-      })
-    }
+      },
+    })
   }
 
   const handleKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
