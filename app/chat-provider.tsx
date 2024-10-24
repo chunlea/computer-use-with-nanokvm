@@ -9,7 +9,8 @@ import React, {
   useState,
   useEffect,
 } from "react"
-import { MouseButton, useHID } from "./hid-context"
+import { useHID } from "./hid-context"
+import { MouseButton } from "@/lib/mapping"
 
 interface ChatContextProps {
   takeAction: (action: ToolUseResponse) => void
