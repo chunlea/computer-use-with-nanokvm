@@ -6,20 +6,23 @@ import {
 } from "@/components/ui/resizable"
 import AIChat from "./chat"
 import KVMScreen from "./screen"
+import { ChatProvider } from "./chat-provider"
 
 export default function Home() {
   return (
-    <div className="flex flex-col h-screen">
-      <TopNavBar />
-      <ResizablePanelGroup direction="horizontal">
-        <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
-          <AIChat />
-        </ResizablePanel>
-        <ResizableHandle withHandle />
-        <ResizablePanel>
-          <KVMScreen />
-        </ResizablePanel>
-      </ResizablePanelGroup>
-    </div>
+    <ChatProvider>
+      <div className="flex flex-col h-screen">
+        <TopNavBar />
+        <ResizablePanelGroup direction="horizontal">
+          <ResizablePanel defaultSize={30} minSize={20} maxSize={50}>
+            <AIChat />
+          </ResizablePanel>
+          <ResizableHandle withHandle />
+          <ResizablePanel>
+            <KVMScreen />
+          </ResizablePanel>
+        </ResizablePanelGroup>
+      </div>
+    </ChatProvider>
   )
 }

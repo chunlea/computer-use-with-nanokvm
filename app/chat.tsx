@@ -24,24 +24,38 @@ import rehypeHighlight from "rehype-highlight"
 import rehypeRaw from "rehype-raw"
 import { useEffect, useRef, useState } from "react"
 import "highlight.js/styles/atom-one-dark.css"
+import { useChat } from "./chat-provider"
+import { APIResponse, Message, ToolUseResponse } from "@/types/api"
+import { cn } from "@/lib/utils"
 
-// Updated APIResponse interface
-interface APIResponse {
-  content: string
-  hasToolUse: boolean
-  toolUse?: {
-    type: "tool_use"
-    id: string
-    name: string
-    input: string
+function MessageToolComponent({
+  isThinking,
+  name,
+  action,
+}: {
+  isThinking: boolean
+  name?: string
+  action?: string
+}) {
+  if (!name) return null
+
+  if (name === "computer") {
+    return (
+      <Badge
+        variant="secondary"
+        className={cn("inline-flex", isThinking && "animate-pulse")}
+      >
+        <ComputerIcon className="w-4 h-4 mr-2" />
+        {action}
+      </Badge>
+    )
   }
-}
 
-interface Message {
-  id: string
-  role: string
-  content: string
-  hasToolUse?: boolean
+  return (
+    <Badge variant="secondary" className="inline-flex">
+      <HammerIcon className="w-4 h-4 mr-1" /> Using tool...
+    </Badge>
+  )
 }
 
 function MessageComponent({ message }: { message: Message }) {
@@ -70,9 +84,11 @@ function MessageComponent({ message }: { message: Message }) {
               <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-2" />
               {message.hasToolUse ? (
                 <div className="flex flex-col gap-2">
-                  <Badge variant="secondary" className="inline-flex">
-                    <HammerIcon className="w-4 h-4 mr-1" /> Generated Chart
-                  </Badge>
+                  <MessageToolComponent
+                    isThinking={true}
+                    name={message.toolUse?.name}
+                    action={message.toolUse?.input.action}
+                  />
                   <span>Thinking...</span>
                 </div>
               ) : (
@@ -82,18 +98,30 @@ function MessageComponent({ message }: { message: Message }) {
           ) : message.role === "assistant" ? (
             <div className="flex flex-col gap-2">
               {message.hasToolUse && (
-                <Badge variant="secondary" className="inline-flex px-0">
-                  <HammerIcon className="w-4 h-4 mr-1" /> Control your computer
-                </Badge>
+                <MessageToolComponent
+                  isThinking={false}
+                  name={message.toolUse?.name}
+                  action={message.toolUse?.input.action}
+                />
               )}
-              <ReactMarkdown rehypePlugins={[rehypeRaw, rehypeHighlight]}>
-                {message.content}
-              </ReactMarkdown>
+              {typeof message.content === "string" ? (
+                <ReactMarkdown rehypePlugins={[rehypeRaw, rehypeHighlight]}>
+                  {message.content}
+                </ReactMarkdown>
+              ) : (
+                <div>{JSON.stringify(message.content)}</div>
+              )}
             </div>
           ) : (
-            <ReactMarkdown rehypePlugins={[rehypeRaw, rehypeHighlight]}>
-              {message.content}
-            </ReactMarkdown>
+            <>
+              {typeof message.content === "string" ? (
+                <ReactMarkdown rehypePlugins={[rehypeRaw, rehypeHighlight]}>
+                  {message.content}
+                </ReactMarkdown>
+              ) : (
+                <div>{JSON.stringify(message.content)}</div>
+              )}
+            </>
           )}
         </div>
       </div>
@@ -102,12 +130,18 @@ function MessageComponent({ message }: { message: Message }) {
 }
 
 export default function AIChat() {
-  const selectedModel = "claude-3-5-sonnet-20241022"
-  const [messages, setMessages] = useState<Message[]>([])
-  const [input, setInput] = useState("")
-  const [isLoading, setIsLoading] = useState(false)
-
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const [tool, setTool] = useState<ToolUseResponse | null | undefined>(null)
+
+  const {
+    messages,
+    setMessages,
+    takeAction,
+    input,
+    setInput,
+    isLoading,
+    setIsLoading,
+  } = useChat()
 
   const contentRef = useRef<HTMLDivElement>(null)
   const [isScrollLocked, setIsScrollLocked] = useState(false)
@@ -148,6 +182,13 @@ export default function AIChat() {
     return () => observer.disconnect()
   }, [isScrollLocked])
 
+  useEffect(() => {
+    if (tool && messages[messages.length - 1].hasToolUse) {
+      takeAction(tool)
+      setTool(undefined)
+    }
+  }, [tool, takeAction, messages])
+
   const handleSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault()
     if (!input.trim()) return
@@ -174,6 +215,19 @@ export default function AIChat() {
 
     // Prepare all messages for the API request
     const apiMessages = [...messages, userMessage].map((msg) => {
+      if (msg.toolUse) {
+        return {
+          role: msg.role,
+          content: [
+            {
+              type: "text",
+              text: msg.content,
+            },
+            msg.toolUse,
+          ],
+        }
+      }
+
       // Handle text-only messages
       return {
         role: msg.role,
@@ -183,7 +237,6 @@ export default function AIChat() {
 
     const requestBody = {
       messages: apiMessages,
-      model: selectedModel,
     }
 
     try {
@@ -208,9 +261,14 @@ export default function AIChat() {
           role: "assistant",
           content: data.content,
           hasToolUse: data.hasToolUse || !!data.toolUse,
+          toolUse: data.toolUse,
         }
         return newMessages
       })
+
+      if (data.hasToolUse && data.toolUse) {
+        setTool(data.toolUse)
+      }
     } catch (error) {
       console.error("Submit Error:", error)
       setMessages((prev) => {

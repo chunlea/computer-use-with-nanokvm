@@ -1,16 +1,16 @@
 "use client"
 
 import Image from "next/image"
-import { useRef } from "react"
+import { useChat } from "./chat-provider"
 
 export default function KVMScreen() {
-  const imageRef = useRef<HTMLImageElement>(null)
+  const { screenRef } = useChat()
 
   return (
     <div className="h-full w-full items-center justify-center flex">
       <Image
-        ref={imageRef}
-        src={`${process.env.NEXT_PUBLIC_NANOKVM_URL}/api/stream/mjpeg`}
+        ref={screenRef}
+        src="/api/stream/mjpeg"
         height={1080}
         width={1920}
         alt=""
