@@ -9,19 +9,24 @@ export interface ToolUseResponse {
   input: ComputerAction
 }
 
+export interface ToolResultResponseImageContent {
+  type: "image"
+  source: {
+    type: string
+    media_type: string
+    data: string
+  }
+}
+
+export interface ToolResultResponseTextContent {
+  type: "text"
+  text: string
+}
+
 export interface ToolResultResponse {
   type: "tool_result"
   tool_use_id: string
-  content: [
-    {
-      type: "text"
-      source: {
-        type: string
-        media_type: string
-        data: string
-      }
-    }
-  ]
+  content?: [ToolResultResponseImageContent | ToolResultResponseTextContent]
 }
 
 export interface APIResponse {
@@ -34,6 +39,8 @@ export interface Message {
   id: string
   role: string
   content: string | object[]
+  hiden?: boolean
+  isThinking?: boolean
   hasToolUse?: boolean
   toolUse?: ToolUseResponse
 }
