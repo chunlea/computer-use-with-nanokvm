@@ -1,13 +1,16 @@
 "use client"
 
-import { MouseButton, MouseEvent } from "@/lib/mapping"
+import { KeyboardCodes, MouseButton, MouseEvent } from "@/lib/mapping"
 import { client } from "@/lib/websocket"
 import React, { createContext, useCallback, useContext, useEffect } from "react"
 
+const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
+
 interface HIDContextProps {
-  moveMouse: (x: number, y: number) => void
-  typeString: (str: string) => void
-  clickMouse: (button: MouseButton) => void
+  moveMouse: (x: number, y: number) => Promise<void>
+  typeString: (str: string) => Promise<void>
+  clickMouse: (button: MouseButton) => Promise<void>
+  handleKeyPress: (key: string) => Promise<void>
 }
 
 const HIDContext = createContext<HIDContextProps | undefined>(undefined)
@@ -27,55 +30,62 @@ export const HIDProvider: React.FC<{ children: React.ReactNode }> = ({
     }
   }, [])
 
-  const moveMouse = useCallback((clientX: number, clientY: number) => {
-    const x = clientX / 773
-    const y = clientY / 538
+  const moveMouse = useCallback(async (clientX: number, clientY: number) => {
+    const x = (clientX - 0) / 832
+    const y = (clientY - 0) / 600
     const hexX = x < 0 ? 0x0001 : Math.floor(0x7fff * x) + 0x0001
     const hexY = y < 0 ? 0x0001 : Math.floor(0x7fff * y) + 0x0001
 
     const data = [2, MouseEvent.MoveAbsolute, MouseButton.None, hexX, hexY]
     client.send(data)
+    await delay(50)
   }, [])
 
-  const clickMouse = useCallback((button: MouseButton) => {
-    switch (button) {
-      case 0:
-        button = MouseButton.Left
-        break
-      case 1:
-        button = MouseButton.Wheel
-        break
-      case 2:
-        button = MouseButton.Right
-        break
-      default:
-        console.log(`unknown button ${button}`)
-        return
-    }
-
+  const clickMouse = useCallback(async (button: MouseButton) => {
     // mouse down
     client.send([2, MouseEvent.Down, button, 0, 0])
 
-    // TODO: seems differnet duration at iOS has different behavior
-    // // mouse up
-    // client.send([2, MouseEvent.Up, button, 0, 0])
+    await delay(200)
+
+    client.send([2, MouseEvent.Up, button, 0, 0])
+
+    await delay(50)
   }, [])
 
-  const typeString = useCallback((str: string) => {
-    for (const char of str) {
-      const code = char.toUpperCase().charCodeAt(0) - 61
+  const handleKeyPress = useCallback(async (key: string) => {
+    const code =
+      KeyboardCodes.get(key.toUpperCase()) ||
+      KeyboardCodes.get(`Key${key.toUpperCase()}`)
 
-      // key down
-      const ctrl = 0
-      const shift = 0
-      const alt = 0
-      const meta = 0
-      const data = [1, code, ctrl, shift, alt, meta]
-      client.send(data)
-      // key up
-      client.send([1, 0, 0, 0, 0, 0])
+    if (!code) {
+      console.log(`Unknown key: ${key}`)
+      return
     }
+
+    // key down
+    const ctrl = 0
+    const shift = 0
+    const alt = 0
+    const meta = 0
+    const data = [1, code, ctrl, shift, alt, meta]
+
+    client.send(data)
+
+    await delay(50)
+    // key up
+    client.send([1, 0, 0, 0, 0, 0])
+
+    await delay(50)
   }, [])
+
+  const typeString = useCallback(
+    async (str: string) => {
+      for (const char of str) {
+        await handleKeyPress(char)
+      }
+    },
+    [handleKeyPress]
+  )
 
   return (
     <HIDContext.Provider
@@ -83,6 +93,7 @@ export const HIDProvider: React.FC<{ children: React.ReactNode }> = ({
         moveMouse,
         clickMouse,
         typeString,
+        handleKeyPress,
       }}
     >
       {children}
