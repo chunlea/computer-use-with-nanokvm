@@ -31,6 +31,7 @@ interface ChatContextProps {
   setTool: React.Dispatch<
     React.SetStateAction<ToolUseResponse | null | undefined>
   >
+  takeScreenshot: () => string | undefined
 }
 
 const ChatContext = createContext<ChatContextProps | undefined>(undefined)
@@ -44,7 +45,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(false)
   const [tool, setTool] = useState<ToolUseResponse | null | undefined>(null)
 
-  const { moveMouse, clickMouse, typeString } = useHID()
+  const { moveMouse, clickMouse, typeString, handleKeyPress } = useHID()
 
   const takeScreenshot = useCallback(() => {
     if (!screenRef.current) {
@@ -222,7 +223,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         case "mouse_move":
           console.log("Mouse move", action.input?.coordinate)
           if (action.input?.coordinate) {
-            moveMouse(action.input?.coordinate[0], action.input?.coordinate[1])
+            await moveMouse(
+              action.input?.coordinate[0],
+              action.input?.coordinate[1]
+            )
           }
 
           await submitMessage({
@@ -235,7 +239,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           break
         case "left_click":
           console.log("Mouse left click")
-          clickMouse(MouseButton.Left)
+          await clickMouse(MouseButton.Left)
           await submitMessage({
             messageContent: {
               type: "tool_result",
@@ -246,8 +250,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           break
         case "double_click":
           console.log("double click")
-          clickMouse(MouseButton.Left)
-          clickMouse(MouseButton.Left)
+          await clickMouse(MouseButton.Left)
+          await clickMouse(MouseButton.Left)
           await submitMessage({
             messageContent: {
               type: "tool_result",
@@ -257,7 +261,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           })
           break
         case "key":
-          console.log("Key press")
+          console.log("Key press", action.input?.text)
+          await handleKeyPress(action.input?.text || "")
           await submitMessage({
             messageContent: {
               type: "tool_result",
@@ -280,7 +285,14 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           break
       }
     },
-    [clickMouse, moveMouse, submitMessage, takeScreenshot, typeString]
+    [
+      clickMouse,
+      handleKeyPress,
+      moveMouse,
+      submitMessage,
+      takeScreenshot,
+      typeString,
+    ]
   )
 
   useEffect(() => {
@@ -304,6 +316,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         submitMessage,
         tool,
         setTool,
+        takeScreenshot,
       }}
     >
       {children}
