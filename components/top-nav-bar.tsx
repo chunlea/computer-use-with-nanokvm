@@ -11,10 +11,12 @@ import {
   DropdownMenuContent,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
+import { useChat } from "@/app/chat-provider"
 
 export default function TopNavBar() {
   const { theme, setTheme } = useTheme()
   const [mounted, setMounted] = useState(false)
+  const { takeScreenshot } = useChat()
 
   useEffect(() => {
     setMounted(true)
@@ -44,6 +46,18 @@ export default function TopNavBar() {
         <h1>Computer use with NanoKVM</h1>
       </div>
       <div className="flex items-center gap-2">
+        <Button
+          variant="outline"
+          onClick={() => {
+            const screenshot = takeScreenshot()
+            if (screenshot) {
+              console.log(screenshot)
+            }
+          }}
+        >
+          Take Screenshot
+        </Button>
+
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <Button variant="outline" size="icon">
