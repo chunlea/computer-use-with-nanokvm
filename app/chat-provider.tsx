@@ -1,6 +1,11 @@
 "use client"
 
-import { APIResponse, Message, ToolUseResponse } from "@/types/api"
+import {
+  APIResponse,
+  Message,
+  ToolResultResponse,
+  ToolUseResponse,
+} from "@/types/api"
 import React, {
   createContext,
   useContext,
@@ -32,6 +37,8 @@ interface ChatContextProps {
     React.SetStateAction<ToolUseResponse | null | undefined>
   >
   takeScreenshot: () => string | undefined
+  appendToolResult: (toolResult: ToolResultResponse) => void
+  getToolResult: (toolUseId: string) => ToolResultResponse | undefined
 }
 
 const ChatContext = createContext<ChatContextProps | undefined>(undefined)
@@ -41,6 +48,10 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 }) => {
   const screenRef = useRef<HTMLImageElement>(null)
   const [messages, setMessages] = useState<Message[]>([])
+  const [toolResults, setToolResults] = useState<
+    Record<string, ToolResultResponse>
+  >({})
+
   const [input, setInput] = useState("")
   const [isLoading, setIsLoading] = useState(false)
   const [tool, setTool] = useState<ToolUseResponse | null | undefined>(null)
@@ -68,11 +79,13 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     async ({
       messageContent,
       showThinking,
+      isToolResult,
       beforeSubmitting,
       afterSubmitting,
     }: {
       messageContent: string | object
       showThinking: boolean
+      isToolResult?: boolean
       beforeSubmitting?: () => void
       afterSubmitting?: () => void
     }) => {
@@ -83,6 +96,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       const userMessage: Message = {
         id: crypto.randomUUID(),
         role: "user",
+        hiden: isToolResult,
         content:
           typeof messageContent === "string"
             ? messageContent
@@ -92,7 +106,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
       const thinkingMessage: Message = {
         id: crypto.randomUUID(),
         role: "assistant",
-        content: "thinking",
+        content: "",
+        isThinking: true,
       }
 
       if (showThinking) {
@@ -193,6 +208,34 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
     [messages]
   )
 
+  const appendToolResult = useCallback(
+    async (toolResult: ToolResultResponse) => {
+      if (!toolResult.tool_use_id) {
+        console.error("Tool result must have a tool_use_id")
+        return
+      }
+
+      setToolResults((prev) => ({
+        ...prev,
+        [toolResult.tool_use_id]: toolResult,
+      }))
+
+      await submitMessage({
+        messageContent: toolResult,
+        isToolResult: true,
+        showThinking: true,
+      })
+    },
+    [submitMessage]
+  )
+
+  const getToolResult = useCallback(
+    (toolUseId: string) => {
+      return toolResults[toolUseId]
+    },
+    [toolResults]
+  )
+
   const takeAction = useCallback(
     async (action: ToolUseResponse) => {
       console.log("Taking action:", action)
@@ -201,22 +244,19 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         case "screenshot":
           const screenshot = takeScreenshot()
           if (screenshot) {
-            await submitMessage({
-              messageContent: {
-                type: "tool_result",
-                tool_use_id: action.id,
-                content: [
-                  {
-                    type: "image",
-                    source: {
-                      type: "base64",
-                      media_type: "image/png",
-                      data: screenshot,
-                    },
+            await appendToolResult({
+              type: "tool_result",
+              tool_use_id: action.id,
+              content: [
+                {
+                  type: "image",
+                  source: {
+                    type: "base64",
+                    media_type: "image/png",
+                    data: screenshot,
                   },
-                ],
-              },
-              showThinking: true,
+                },
+              ],
             })
           }
           break
@@ -229,67 +269,55 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             )
           }
 
-          await submitMessage({
-            messageContent: {
-              type: "tool_result",
-              tool_use_id: action.id,
-            },
-            showThinking: true,
+          await appendToolResult({
+            type: "tool_result",
+            tool_use_id: action.id,
           })
           break
         case "left_click":
           console.log("Mouse left click")
           await clickMouse(MouseButton.Left)
-          await submitMessage({
-            messageContent: {
-              type: "tool_result",
-              tool_use_id: action.id,
-            },
-            showThinking: true,
+          await appendToolResult({
+            type: "tool_result",
+            tool_use_id: action.id,
           })
           break
         case "double_click":
           console.log("double click")
+
           await clickMouse(MouseButton.Left)
           await clickMouse(MouseButton.Left)
-          await submitMessage({
-            messageContent: {
-              type: "tool_result",
-              tool_use_id: action.id,
-            },
-            showThinking: true,
+
+          await appendToolResult({
+            type: "tool_result",
+            tool_use_id: action.id,
           })
           break
         case "key":
           console.log("Key press", action.input?.text)
           await handleKeyPress(action.input?.text || "")
-          await submitMessage({
-            messageContent: {
-              type: "tool_result",
-              tool_use_id: action.id,
-            },
-            showThinking: true,
+
+          await appendToolResult({
+            type: "tool_result",
+            tool_use_id: action.id,
           })
           break
         case "type":
           console.log("Type")
           await typeString(action.input?.text || "")
 
-          await submitMessage({
-            messageContent: {
-              type: "tool_result",
-              tool_use_id: action.id,
-            },
-            showThinking: true,
+          await appendToolResult({
+            type: "tool_result",
+            tool_use_id: action.id,
           })
           break
       }
     },
     [
+      appendToolResult,
       clickMouse,
       handleKeyPress,
       moveMouse,
-      submitMessage,
       takeScreenshot,
       typeString,
     ]
@@ -317,6 +345,8 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
         tool,
         setTool,
         takeScreenshot,
+        appendToolResult,
+        getToolResult,
       }}
     >
       {children}

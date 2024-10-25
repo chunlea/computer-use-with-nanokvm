@@ -1,7 +1,6 @@
 "use client"
 
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import {
   Card,
@@ -12,205 +11,16 @@ import {
   CardTitle,
 } from "@/components/ui/card"
 import { Textarea } from "@/components/ui/textarea"
+import "highlight.js/styles/atom-one-dark.css"
 import {
   ComputerIcon,
-  HammerIcon,
   HdmiPortIcon,
   MousePointerClickIcon,
   Send,
 } from "lucide-react"
-import ReactMarkdown from "react-markdown"
-import rehypeHighlight from "rehype-highlight"
-import rehypeRaw from "rehype-raw"
 import { useEffect, useRef, useState } from "react"
-import "highlight.js/styles/atom-one-dark.css"
 import { useChat } from "./chat-provider"
-import { Message, ToolResultResponse } from "@/types/api"
-import { cn } from "@/lib/utils"
-import Image from "next/image"
-
-function MessageToolComponent({
-  isThinking,
-  name,
-  action,
-}: {
-  isThinking: boolean
-  name?: string
-  action?: string
-}) {
-  if (!name) return null
-
-  if (name === "computer") {
-    return (
-      <Badge
-        variant="secondary"
-        className={cn("inline-flex", isThinking && "animate-pulse")}
-      >
-        <ComputerIcon className="w-4 h-4 mr-2" />
-        {action}
-      </Badge>
-    )
-  }
-
-  return (
-    <Badge variant="secondary" className="inline-flex">
-      <HammerIcon className="w-4 h-4 mr-1" /> Using tool...
-    </Badge>
-  )
-}
-
-function MessageContentComponent({ message }: { message: Message }) {
-  if (typeof message.content === "string") {
-    if (message.content === "thinking") {
-      return (
-        <div className="flex items-center">
-          <div className="animate-spin rounded-full h-4 w-4 border-b-2 border-gray-900 mr-2" />
-          {message.hasToolUse ? (
-            <div className="flex flex-col gap-2">
-              <MessageToolComponent
-                isThinking={true}
-                name={message.toolUse?.name}
-                action={message.toolUse?.input.action}
-              />
-              <span>Thinking...</span>
-            </div>
-          ) : (
-            <span>Thinking...</span>
-          )}
-        </div>
-      )
-    } else {
-      return (
-        <ReactMarkdown rehypePlugins={[rehypeRaw, rehypeHighlight]}>
-          {message.content}
-        </ReactMarkdown>
-      )
-    }
-  }
-
-  if (Array.isArray(message.content)) {
-    return (
-      <div className="flex flex-col gap-2">
-        {message.hasToolUse && (
-          <MessageToolComponent
-            isThinking={false}
-            name={message.toolUse?.name}
-            action={message.toolUse?.input.action}
-          />
-        )}
-        {message.content.map((part, index) => {
-          if (typeof part === "string") {
-            return (
-              <ReactMarkdown
-                key={index}
-                rehypePlugins={[rehypeRaw, rehypeHighlight]}
-              >
-                {part}
-              </ReactMarkdown>
-            )
-          }
-
-          if (
-            typeof part === "object" &&
-            (part as ToolResultResponse).type === "tool_result"
-          ) {
-            const toolResult = part as ToolResultResponse
-
-            if (toolResult.content) {
-              return (
-                <div key={index} className="flex justify-center">
-                  {toolResult.content.map((content, index) => {
-                    if (content.type === "text") {
-                      return (
-                        <ReactMarkdown
-                          key={index}
-                          rehypePlugins={[rehypeRaw, rehypeHighlight]}
-                        >
-                          {JSON.stringify(content)}
-                        </ReactMarkdown>
-                      )
-                    }
-
-                    if (content.type === "image") {
-                      return (
-                        <Image
-                          key={index}
-                          src={`data:${content.source.media_type};base64,${content.source.data}`}
-                          alt="Tool result"
-                          className="max-w-full"
-                          width={100}
-                          height={100}
-                          unoptimized={true}
-                        />
-                      )
-                    }
-
-                    return (
-                      <ReactMarkdown
-                        key={index}
-                        rehypePlugins={[rehypeRaw, rehypeHighlight]}
-                      >
-                        {JSON.stringify(content)}
-                      </ReactMarkdown>
-                    )
-                  })}
-                </div>
-              )
-            } else {
-              return (
-                <ReactMarkdown
-                  key={index}
-                  rehypePlugins={[rehypeRaw, rehypeHighlight]}
-                >
-                  {JSON.stringify(toolResult)}
-                </ReactMarkdown>
-              )
-            }
-          }
-
-          return (
-            <ReactMarkdown
-              key={index}
-              rehypePlugins={[rehypeRaw, rehypeHighlight]}
-            >
-              {JSON.stringify(part)}
-            </ReactMarkdown>
-          )
-        })}
-      </div>
-    )
-  }
-
-  return null
-}
-
-function MessageComponent({ message }: { message: Message }) {
-  return (
-    <div className="flex items-start gap-2">
-      {message.role === "assistant" && (
-        <Avatar className="w-8 h-8 border">
-          <AvatarImage src="/ant-logo.svg" alt="AI Assistant Avatar" />
-          <AvatarFallback>AI</AvatarFallback>
-        </Avatar>
-      )}
-      <div
-        className={`flex flex-col max-w-[75%] ${
-          message.role === "user" ? "ml-auto" : ""
-        }`}
-      >
-        <div
-          className={`p-3 rounded-md text-base ${
-            message.role === "user"
-              ? "bg-primary text-primary-foreground"
-              : "bg-muted border"
-          }`}
-        >
-          <MessageContentComponent message={message} />
-        </div>
-      </div>
-    </div>
-  )
-}
+import { MessageComponent } from "@/components/message"
 
 export default function AIChat() {
   const messagesEndRef = useRef<HTMLDivElement>(null)
@@ -370,18 +180,12 @@ export default function AIChat() {
           </div>
         ) : (
           <div className="space-y-4 min-h-full">
-            {messages.map((message) => (
-              <div
-                key={message.id}
-                className={`animate-fade-in-up ${
-                  message.content === "thinking" ? "animate-pulse" : ""
-                }`}
-              >
-                <MessageComponent message={message} />
-              </div>
-            ))}
-            <div ref={messagesEndRef} className="h-4" />{" "}
-            {/* Add height to ensure scroll space */}
+            {messages.map((message) =>
+              message.hiden ? null : (
+                <MessageComponent message={message} key={message.id} />
+              )
+            )}
+            <div ref={messagesEndRef} className="h-4" />
           </div>
         )}
       </CardContent>
