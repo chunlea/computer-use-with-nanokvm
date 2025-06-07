@@ -6,9 +6,9 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ### Essential Commands
 - `bun dev` - Start development server with Turbopack at http://localhost:3000 (project uses Bun, not npm)
-- `npm run build` - Build production version
-- `npm run start` - Start production server
-- `npm run lint` - Run linting checks
+- `bun run build` - Build production version
+- `bun run start` - Start production server
+- `bun run lint` - Run linting checks
 
 ### Environment Setup
 - Copy `.env.local.example` to `.env.local` and configure:
@@ -50,3 +50,6 @@ The app supports these computer actions:
 - `type` - String typing by iterating key presses
 
 All actions communicate with nanoKVM via WebSocket at `ws://{NANOKVM_HOST}/api/ws` using numeric protocol arrays.
+
+### Additional Notes
+- Use bun, not npm
