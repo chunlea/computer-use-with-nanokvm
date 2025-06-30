@@ -19,7 +19,7 @@ import { MouseButton } from "@/lib/mapping"
 
 interface ChatContextProps {
   takeAction: (action: ToolUseResponse) => void
-  screenRef: React.RefObject<HTMLImageElement>
+  screenRef: React.RefObject<HTMLImageElement | null>
   messages: Message[]
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>
   input: string
