@@ -19,7 +19,7 @@ import { MouseButton } from "@/lib/mapping"
 
 interface ChatContextProps {
   takeAction: (action: ToolUseResponse) => void
-  screenRef: React.RefObject<HTMLImageElement>
+  screenRef: React.RefObject<HTMLImageElement | null>
   messages: Message[]
   setMessages: React.Dispatch<React.SetStateAction<Message[]>>
   input: string
@@ -56,7 +56,17 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
   const [isLoading, setIsLoading] = useState(false)
   const [tool, setTool] = useState<ToolUseResponse | null | undefined>(null)
 
-  const { moveMouse, clickMouse, typeString, handleKeyPress } = useHID()
+  const {
+    moveMouse,
+    clickMouse,
+    mouseDown,
+    mouseUp,
+    typeString,
+    handleKeyPress,
+    holdKey,
+    scroll,
+    wait,
+  } = useHID()
 
   const takeScreenshot = useCallback(() => {
     if (!screenRef.current) {
@@ -118,7 +128,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
 
       setIsLoading(true)
 
-      // Prepare all messages for the API request
       const apiMessages = [...messages, userMessage].map((msg) => {
         if (msg.toolUse) {
           if (typeof msg.content === "string" && msg.content.length > 0) {
@@ -140,7 +149,6 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
           }
         }
 
-        // Handle text-only messages
         return {
           role: msg.role,
           content: msg.content,
@@ -260,6 +268,7 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             })
           }
           break
+
         case "mouse_move":
           console.log("Mouse move", action.input?.coordinate)
           if (action.input?.coordinate) {
@@ -268,12 +277,12 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
               action.input?.coordinate[1]
             )
           }
-
           await appendToolResult({
             type: "tool_result",
             tool_use_id: action.id,
           })
           break
+
         case "left_click":
           console.log("Mouse left click")
           await clickMouse(MouseButton.Left)
@@ -282,49 +291,173 @@ export const ChatProvider: React.FC<{ children: React.ReactNode }> = ({
             tool_use_id: action.id,
           })
           break
-        case "double_click":
-          console.log("double click")
 
-          await clickMouse(MouseButton.Left)
-          await clickMouse(MouseButton.Left)
-
+        case "right_click":
+          console.log("Mouse right click")
+          await clickMouse(MouseButton.Right)
           await appendToolResult({
             type: "tool_result",
             tool_use_id: action.id,
           })
           break
+
+        case "middle_click":
+          console.log("Mouse middle click")
+          await clickMouse(MouseButton.Middle)
+          await appendToolResult({
+            type: "tool_result",
+            tool_use_id: action.id,
+          })
+          break
+
+        case "double_click":
+          console.log("Double click")
+          await clickMouse(MouseButton.Left)
+          await clickMouse(MouseButton.Left)
+          await appendToolResult({
+            type: "tool_result",
+            tool_use_id: action.id,
+          })
+          break
+
+        case "triple_click":
+          console.log("Triple click")
+          await clickMouse(MouseButton.Left)
+          await clickMouse(MouseButton.Left)
+          await clickMouse(MouseButton.Left)
+          await appendToolResult({
+            type: "tool_result",
+            tool_use_id: action.id,
+          })
+          break
+
+        case "left_mouse_down":
+          console.log("Mouse down")
+          await mouseDown(MouseButton.Left)
+          await appendToolResult({
+            type: "tool_result",
+            tool_use_id: action.id,
+          })
+          break
+
+        case "left_mouse_up":
+          console.log("Mouse up")
+          await mouseUp(MouseButton.Left)
+          await appendToolResult({
+            type: "tool_result",
+            tool_use_id: action.id,
+          })
+          break
+
+        case "left_click_drag":
+          console.log("Left click drag", action.input?.coordinate)
+          if (action.input?.coordinate) {
+            await mouseDown(MouseButton.Left)
+            await moveMouse(
+              action.input?.coordinate[0],
+              action.input?.coordinate[1]
+            )
+            await mouseUp(MouseButton.Left)
+          }
+          await appendToolResult({
+            type: "tool_result",
+            tool_use_id: action.id,
+          })
+          break
+
         case "key":
           console.log("Key press", action.input?.text)
           await handleKeyPress(action.input?.text || "")
-
           await appendToolResult({
             type: "tool_result",
             tool_use_id: action.id,
           })
           break
+
+        case "hold_key":
+          console.log("Hold key", action.input?.text, action.input?.duration)
+          await holdKey(action.input?.text || "", action.input?.duration || 500)
+          await appendToolResult({
+            type: "tool_result",
+            tool_use_id: action.id,
+          })
+          break
+
         case "type":
-          console.log("Type")
+          console.log("Type", action.input?.text)
           await typeString(action.input?.text || "")
-
           await appendToolResult({
             type: "tool_result",
             tool_use_id: action.id,
           })
           break
+
+        case "scroll":
+          console.log("Scroll", action.input?.scroll_direction, action.input?.scroll_amount)
+          await scroll(
+            action.input?.scroll_direction || "down",
+            action.input?.scroll_amount || 3
+          )
+          await appendToolResult({
+            type: "tool_result",
+            tool_use_id: action.id,
+          })
+          break
+
+        case "wait":
+          console.log("Wait", action.input?.duration)
+          await wait(action.input?.duration || 1000)
+          await appendToolResult({
+            type: "tool_result",
+            tool_use_id: action.id,
+          })
+          break
+
+        case "cursor_position":
+          console.log("Cursor position requested")
+          await appendToolResult({
+            type: "tool_result",
+            tool_use_id: action.id,
+            content: [
+              {
+                type: "text",
+                text: "Cursor position tracking is not available via nanoKVM",
+              },
+            ],
+          })
+          break
+
+        default:
+          console.log("Unknown action:", action.input.action)
+          await appendToolResult({
+            type: "tool_result",
+            tool_use_id: action.id,
+            content: [
+              {
+                type: "text",
+                text: `Unknown action: ${action.input.action}`,
+              },
+            ],
+          })
       }
     },
     [
       appendToolResult,
       clickMouse,
       handleKeyPress,
+      holdKey,
+      mouseDown,
+      mouseUp,
       moveMouse,
+      scroll,
       takeScreenshot,
       typeString,
+      wait,
     ]
   )
 
   useEffect(() => {
-    if (tool && messages[messages.length - 1].hasToolUse) {
+    if (tool && messages[messages.length - 1]?.hasToolUse) {
       takeAction(tool)
       setTool(undefined)
     }

@@ -10,7 +10,12 @@ interface HIDContextProps {
   moveMouse: (x: number, y: number) => Promise<void>
   typeString: (str: string) => Promise<void>
   clickMouse: (button: MouseButton) => Promise<void>
+  mouseDown: (button: MouseButton) => Promise<void>
+  mouseUp: (button: MouseButton) => Promise<void>
   handleKeyPress: (key: string) => Promise<void>
+  holdKey: (key: string, duration?: number) => Promise<void>
+  scroll: (direction: "up" | "down" | "left" | "right", amount?: number) => Promise<void>
+  wait: (duration: number) => Promise<void>
 }
 
 const HIDContext = createContext<HIDContextProps | undefined>(undefined)
@@ -41,14 +46,20 @@ export const HIDProvider: React.FC<{ children: React.ReactNode }> = ({
     await delay(50)
   }, [])
 
-  const clickMouse = useCallback(async (button: MouseButton) => {
-    // mouse down
+  const mouseDown = useCallback(async (button: MouseButton) => {
     client.send([2, MouseEvent.Down, button, 0, 0])
+    await delay(50)
+  }, [])
 
-    await delay(200)
-
+  const mouseUp = useCallback(async (button: MouseButton) => {
     client.send([2, MouseEvent.Up, button, 0, 0])
+    await delay(50)
+  }, [])
 
+  const clickMouse = useCallback(async (button: MouseButton) => {
+    client.send([2, MouseEvent.Down, button, 0, 0])
+    await delay(200)
+    client.send([2, MouseEvent.Up, button, 0, 0])
     await delay(50)
   }, [])
 
@@ -62,7 +73,6 @@ export const HIDProvider: React.FC<{ children: React.ReactNode }> = ({
       return
     }
 
-    // key down
     const ctrl = 0
     const shift = 0
     const alt = 0
@@ -70,12 +80,51 @@ export const HIDProvider: React.FC<{ children: React.ReactNode }> = ({
     const data = [1, code, ctrl, shift, alt, meta]
 
     client.send(data)
-
     await delay(50)
-    // key up
     client.send([1, 0, 0, 0, 0, 0])
-
     await delay(50)
+  }, [])
+
+  const holdKey = useCallback(async (key: string, duration: number = 500) => {
+    const code =
+      KeyboardCodes.get(key.toUpperCase()) ||
+      KeyboardCodes.get(`Key${key.toUpperCase()}`)
+
+    if (!code) {
+      console.log(`Unknown key: ${key}`)
+      return
+    }
+
+    const ctrl = 0
+    const shift = 0
+    const alt = 0
+    const meta = 0
+    const data = [1, code, ctrl, shift, alt, meta]
+
+    client.send(data)
+    await delay(duration)
+    client.send([1, 0, 0, 0, 0, 0])
+    await delay(50)
+  }, [])
+
+  const scroll = useCallback(async (direction: "up" | "down" | "left" | "right", amount: number = 3) => {
+    // nanoKVM uses wheel events - we simulate multiple small scrolls
+    const scrollAmount = direction === "up" || direction === "left" ? -amount : amount
+
+    for (let i = 0; i < Math.abs(amount); i++) {
+      // Send scroll event (MouseEvent.Scroll = 3)
+      if (direction === "up" || direction === "down") {
+        client.send([2, 3, 0, 0, scrollAmount > 0 ? 1 : -1])
+      } else {
+        // Horizontal scroll
+        client.send([2, 4, 0, scrollAmount > 0 ? 1 : -1, 0])
+      }
+      await delay(50)
+    }
+  }, [])
+
+  const wait = useCallback(async (duration: number) => {
+    await delay(duration)
   }, [])
 
   const typeString = useCallback(
@@ -92,8 +141,13 @@ export const HIDProvider: React.FC<{ children: React.ReactNode }> = ({
       value={{
         moveMouse,
         clickMouse,
+        mouseDown,
+        mouseUp,
         typeString,
         handleKeyPress,
+        holdKey,
+        scroll,
+        wait,
       }}
     >
       {children}

@@ -132,5 +132,8 @@ export enum MouseButton {
   None = 0,
   Left = 1,
   Right = 2,
-  Wheel = 3,
+  Middle = 3,
 }
+
+// Alias for backwards compatibility
+export const MouseButtonWheel = MouseButton.Middle
